@@ -1,10 +1,15 @@
 (ns dcaas.survey-renderer.renderer
   (:require [clojure.xml :as xml]
-            [clojure.string :as s]))
+            [clojure.string :as s]
+            [clojure.core.match :refer [match]]))
 
 (defn- escape-str
   [string]
   string)
+
+(defn- escape-url
+  [url]
+  url)
 
 (defn- whitespaceless
   [string]
@@ -145,14 +150,53 @@
 (defn- render-short-answer
   [content name]
   (whitespaceless (str
-    "<b>"
-    (escape-str (apply str content))
-    "</b>"
     "<div class=\"row\">
       <div class=\"col-md-3\"></div>
       <div class=\"col-md-6\">
-        <label for=\"short-answer\">Short answer</label>
+        <label for=\"" name "\">" (escape-str (apply str content)) "</label>
         <input type=\"text\" class=\"form-control\" id=\"" name "\">
+      </div>
+      <div class=\"col-md-3\"></div>
+    </div>")))
+
+(defn- render-long-answer
+  [content name]
+  (whitespaceless (str
+    "<div class=\"row\">
+      <div class=\"col-md-3\"></div>
+      <div class=\"col-md-6\">
+        <label for=\"" name "\">" (escape-str (apply str content)) "</label>
+        <textarea class=\"form-control\" rows=\"3\" id=\"" name "\"></textarea>
+      </div>
+      <div class=\"col-md-3\"></div>
+    </div>")))
+
+(defn- render-checkboxes
+  [content name]
+  (whitespaceless (str
+    "<div class=\"row\">
+      <div class=\"col-md-3\"></div>
+      <div class=\"col-md-6\">
+        <label>"
+          (escape-str (apply str (map
+            #(if (nil? (:content %))
+              %
+              ""))))
+        "</label><br>"
+        (render-checkbox-options
+          (filter #(not (nil? (:content %)))))
+      "</div>
+      <div class=\"col-md-3\"></div>
+    </div>")))
+
+(defn- render-datepicker
+  [content name]
+  (whitespaceless (str
+    "<div class=\"row\">
+      <div class=\"col-md-3\"></div>
+      <div class=\"col-md-6\">
+        <label>" (escape-str (apply str content)) "</label><br>
+        <div><input type=\"text\" id=\"" name "\"></div>
       </div>
       <div class=\"col-md-3\"></div>
     </div>")))
@@ -179,21 +223,35 @@
       [:p] (render-p (:content %))
       [:sub] (render-sub (:content %))
       [:sup] (render-sup (:content %))
-      [:short-answer] (render-short-answer (:content %))
-      [:long-answer] (render-long-answer (:content %))
-      [:checkboxes] (render-checkboxes (:content %))
-      [:datepicker] (render-datepicker (:content %))
-      [:timepicker] (render-timepicker (:content %))
-      [:natural-language-date-time] (render-natural-language-date-time (:content %))
-      [:multiple-choice] (render-multiple-choice (:content %))
-      [:linear-scale] (render-linear-scale (:content %))
-      [:multiple-choice-grid] (render-multiple-choice-grid (:content %))
-      [:dropdown] (render-dropdown (:content %))
-      :else nil))))
+      [:short-answer] (str (render-short-answer (:content %) (-> % :attrs :name)) "<br>")
+      [:long-answer] (str (render-long-answer (:content %) (-> % :attrs :name)) "<br>")
+      ; [:checkboxes] (str (render-checkboxes (:content %) (-> % :attrs :name)) "<br>")
+      ; [:datepicker] (str (render-datepicker (:content %) (-> % :attrs :name)) "<br>")
+      ; [:timepicker] (str (render-timepicker (:content %) (-> % :attrs :name)) "<br>")
+      ; [:natural-language-date-time] (str (render-natural-language-date-time (:content %) (-> % :attrs :name)) "<br>")
+      ; [:multiple-choice] (str (render-multiple-choice (:content %) (-> % :attrs :name)) "<br>")
+      ; [:linear-scale] (str (render-linear-scale (:content %) (-> % :attrs :name)) "<br>")
+      ; [:multiple-choice-grid] (str (render-multiple-choice-grid (:content %) (-> % :attrs :name)) "<br>")
+      ; [:dropdown] (str (render-dropdown (:content %) (-> % :attrs :name)) "<br>")
+      :else nil) elems)))
 
 (defn render-survey
   [uri]
   (let [xml (xml/parse uri)]
     (if (= (:tag xml) :survey)
-      (render-survey-elements (:content xml))
-      nil))
+      (whitespaceless (str
+        "<html>
+        <head>
+          <title>Element Examples</title>
+          <link href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css\" rel=\"stylesheet\">
+          <script src=\"https://code.jquery.com/jquery-3.1.1.min.js\" integrity=\"sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=\" crossorigin=\"anonymous\"></script>
+          <script src=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js\"></script>
+          <script src=\"https://code.jquery.com/ui/1.12.1/jquery-ui.min.js\" integrity=\"sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=\" crossorigin=\"anonymous\"></script>
+          <link href=\"./elements.css\" rel=\"stylesheet\">
+          <link href=\"https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css\" rel=\"stylesheet\">
+          <script src=\"./elements.js\"></script>
+        </head>
+        <body>"
+          (render-survey-elements (:content xml))
+        "</body></html>"))
+      nil)))
